@@ -369,6 +369,14 @@ To express a value that may be `null`, use a union type:
 val s: String | Null = null   // ok
 ```
 
+One consequence is that `throw null` no longer compiles, since `throw e` requires
+`e: Throwable` and `Null </: Throwable`:
+
+```scala
+throw null                             // error: Found: Null  Required: Throwable
+def f(t: Throwable | Null) = throw t   // error: Found: (t : Throwable | Null)  Required: Throwable
+```
+
 ##### 2.3 Singleton types
 
 The rule for term designators (spec §3, "Term Designators") is amended in the same way:
