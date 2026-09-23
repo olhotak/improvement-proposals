@@ -1139,10 +1139,9 @@ Bytecode produced by an older compiler links against bytecode produced by a newe
   unit was compiled with explicit nulls, and this proposal reads it to make that decision.
 - **Reading Scala 2 pickles.** Type bounds whose lower bound is exactly `Null` have their upper
   bound nullified (§4.8), so the `[T >: Null]` idiom continues to work.
-- **Writing TASTy.** Flexible types are pickled. They currently have a dedicated `FLEXIBLEtype`
-  tag; [scala/scala3#27004](https://github.com/scala/scala3/pull/27004) proposes representing them
-  as an `AppliedType` of a type constructor with the bounds `>: T | Null <: T`, which would let
-  `FLEXIBLEtype` be retained only for backwards compatibility.
+- **Writing TASTy.** Flexible types are pickled with a dedicated `FLEXIBLEtype` tag.
+  Inside the compiler, they are represented by an `AppliedType` of a type constructor with the
+  bounds `>: T | Null <: T` (§4.2).
 
 A newer compiler reading TASTy from an older one is therefore unaffected. An older compiler cannot
 read `FLEXIBLEtype`, but that is already true today (the tag exists since flexible types were
@@ -1269,41 +1268,21 @@ The evidence above supports the following sequence, which is what this proposal 
 
 This is by a wide margin the most significant interaction, and the cause of 13 of the 16 residual
 OCB failures. `scala.quoted.Quotes` exposes types through pattern-match extractors, and a macro
-that enumerates the forms it knows about will now meet `FlexibleType` where it previously met a
-`TypeRef`:
+that inspects the signature of a Java symbol now meets a flexible type where it previously met a
+`TypeRef`: a macro that derives a type class from a Java method sees `String |? Null` rather than
+`String`.
 
-```scala
-def inspect(typeRepr: TypeRepr) =
-  typeRepr match
-    case ref: TypeRef     => ...
-    case app: AppliedType => ...
-    case or: OrType       => ...
-    case _ => throw Exception("Unsupported type")   // now reachable
-```
+Note that `unsafeNulls` does **not** mitigate this: flexible types change what the types of Java
+symbols *are*, globally, whereas `unsafeNulls` only relaxes checking.
+The reflection API has a dedicated `FlexibleType`
+form for flexible types: a `TypeTest`, an extractor, and `underlying`/`lo`/`hi` accessors.
 
-Concretely, a macro that derives a type class by inspecting the signature of a Java method now
-sees `String |? Null` rather than `String`. Note that `unsafeNulls` does **not** mitigate this: flexible
-types change what the types of Java symbols *are*, globally, whereas `unsafeNulls` only relaxes
-checking. A project hitting this has no scoped workaround; the macro must be fixed, or the
-representation changed.
-
-A macro that has a permissive default case may not crash, but may still misbehave later by
-processing the flexible type as if it were something else. The general fix is to treat a flexible
-type as a form of type bounds and recurse on its upper bound for subtyping-related work.
-
-Two mitigations exist:
-
-1. Macro libraries can be updated to handle `FlexibleType` explicitly — the correct long-term fix.
-2. Flexible types can be *represented* as an `AppliedType` of a type constructor
-   `Flex[T] >: T | Null <: T`, in which case existing macros that match `AppliedType` and look at
-   the upper bound "just work". This is what
-   [scala/scala3#27004](https://github.com/scala/scala3/pull/27004) does, and it recovers most
-   of the OCB projects that have macro-related errors.
-
-A technical caveat on option 2 is that `underlying` means
-different things for the two representations — for an `AppliedType` it returns the type
-constructor, for a `FlexibleType` the upper bound. Code that reads a type through `superType`
-behaves identically in both.
+A flexible type is an applied type (§4.2), so it also matches an
+`AppliedType` case with the type constructor `<FlexibleType>` and the wrapped type as its single
+argument. A macro that recurses structurally through applied types can therefore often keep working
+without a `FlexibleType` case.
+The general rule is to treat a flexible type as a form of type bounds and to
+recurse on its upper bound for subtyping-related work.
 
 #### Presentation compiler and IDEs
 
@@ -1359,8 +1338,6 @@ The following pull requests related to the feature remain open.
   explicit nulls (§1.4, §2.2, §2.3, §4.2).
 - [scala/scala3#27081](https://github.com/scala/scala3/pull/27081) — enable explicit nulls and safe
   nulls by default (§2, §3).
-- [scala/scala3#27004](https://github.com/scala/scala3/pull/27004) — represent flexible types as
-  applied types
 
 Change 1, making `scala.Null` a subclass of `AnyVal` under `-Yexplicit-nulls`, is already in main:
 it was merged as [scala/scala3#25393](https://github.com/scala/scala3/pull/25393).
