@@ -352,8 +352,12 @@ scope condition. It reads:
 > - *within the context of an `unsafeNulls` language import*, `S = scala.Null` and:
 >   - `T = q.C[T_1, ..., T_n]` with `n ≥ 0` and `C` does not derive from `scala.AnyVal` and `C` is
 >     not the hidden class of an `object`, or
->   - `T = q.x` is a term designator with underlying type `U` and `scala.Null <: U`, or
->   - …
+>   - `T = T_1 { R }` and `scala.Null <: T_1`, or
+>   - `T = { β => T_1 }` and `scala.Null <: T_1`.
+
+The clause also loses the case for term designators, even under `unsafeNulls`. That is, the following
+case is removed outright (see [§2.3](#23-singleton-types)):
+>   - `T = q.x` with `scala.Null <: U`, where `q.x` is a term designator and `U` is a type.
 
 By default, therefore, `Null` conforms only to `Null`, `AnyVal`, `Matchable`,
 `Any` and `AnyKind`, and to unions and intersections built from those. In particular
@@ -379,20 +383,15 @@ def f(t: Throwable | Null) = throw t   // error: Found: (t : Throwable | Null)  
 
 ##### 2.3 Singleton types
 
-The rule for term designators (spec §3, "Term Designators") is amended in the same way:
+The rule for term designators (spec §3, "Term Designators") is simplified to disallow `null` altogether,
+even under `unsafeNulls`:
 
 > All term designators are concrete types.
-> *Within the context of an `unsafeNulls` language import*, if `scala.Null <: U`, the term designator
-> denotes the set of values consisting of `null` and the value denoted by `t`, i.e., the value `v`
-> for which `t eq v`. Otherwise, the designator denotes the singleton set only containing `v`.
+> The designator denotes the singleton set containing only the value denoted by `t`, i.e., the value
+> `v` for which `t eq v`.
 
-That is, by default `p.type` for a `p: String` denotes exactly `{v}`, not
-`{v, null}`. This makes `p.type` a genuine singleton, which is what makes the flow-typing encoding
-of §3 sound.
-
-Prior to [scala/scala3#26943](https://github.com/scala/scala3/pull/26943) the compiler applied
-this rule whenever explicit nulls was enabled, even inside an `unsafeNulls` scope, which was
-inconsistent with the treatment of type designators. That PR brings the two into line.
+So `p.type` for a `p: String` denotes exactly `{v}`, never `{v, null}`. This makes `p.type` a
+genuine singleton, which is what makes the flow-typing encoding of §3 sound.
 
 ##### 2.4 Member selection on nullable unions
 
@@ -602,7 +601,7 @@ def f =
        .$asInstanceOf$[(l.type & Node).next.type & Node].next
 ```
 
-This is also the reason why the singleton-type rule in §2.3 must distinguish `unsafeNulls` scopes: `p.type` must
+This is also why §2.3 removes `null` from the denotation of `p.type`. The singleton `p.type` must
 denote a set not containing `null` for the cast to be justified.
 
 The rewrite takes a different form in a term position and in a singleton type position, since a
@@ -1358,8 +1357,6 @@ The following pull requests related to the feature remain open.
 
 - [scala/scala3#26941](https://github.com/scala/scala3/pull/26941) — specification changes for
   explicit nulls (§1.4, §2.2, §2.3, §4.2).
-- [scala/scala3#26943](https://github.com/scala/scala3/pull/26943) — gate `Null <: TermRef` under
-  `unsafeNulls`, for consistency with the type-designator rule (§2.3).
 - [scala/scala3#27081](https://github.com/scala/scala3/pull/27081) — enable explicit nulls and safe
   nulls by default (§2, §3).
 - [scala/scala3#27004](https://github.com/scala/scala3/pull/27004) — represent flexible types as
