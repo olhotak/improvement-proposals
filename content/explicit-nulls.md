@@ -1196,6 +1196,11 @@ kaizen-solutions/trace4cats-zio-extras, karelcemus/play-redis, laserdisc-io/log-
 narma/tranzactio, scalamock/scalamock, senia-psm/zio-test-akka-http, vitaliihonta/scala-ql,
 zio-archive/zio-metrics-legacy, guardian/fastly-api-client and scalameta/munit.
 
+Since the above was written, new runs of the Open Community Build have been performed with approximately
+the same results. The outputs of these most recent builds are available at:
+- [safe nulls, the proposed default](https://scala3.westeurope.cloudapp.azure.com/dashboard/compare?baseScalaVersion=3.10.1-RC1-bin-20260918-035a05a-NIGHTLY&baseBuildId=scheduled_3.10.1-RC1-bin-20260918-035a05a-NIGHTLY&targetScalaVersion=3.10.1-RC1-bin-20260924-ae67fdd&targetBuildId=dotty-staging%2Fdotty%3Adefault-safe-nulls%3A2026-09-24)
+- [unsafe nulls](https://scala3.westeurope.cloudapp.azure.com/dashboard/compare?baseScalaVersion=3.10.1-RC1-bin-20260918-035a05a-NIGHTLY&baseBuildId=scheduled_3.10.1-RC1-bin-20260918-035a05a-NIGHTLY&targetScalaVersion=3.10.1-RC1-bin-20260923-9ea70bd&targetBuildId=dotty-staging%2Fdotty%3Arebased-explicit-nulls-as-default%3A2026-09-24)
+
 ##### What does porting actually cost? (Community Build)
 
 The proposal's default was enabled on all 40 Community Build projects and they were ported by hand
